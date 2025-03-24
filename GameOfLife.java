@@ -1,9 +1,10 @@
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.image.BufferStrategy;
+import java.io.*;
 import javax.swing.*;
 
-public class GameOfLife extends JFrame implements Runnable, MouseListener {
+public class GameOfLife extends JFrame implements Runnable, MouseListener, MouseMotionListener {
     // member data
     private static boolean isInitialised = false;
     private static final Dimension WindowSize = new Dimension(800,800);
@@ -13,6 +14,8 @@ public class GameOfLife extends JFrame implements Runnable, MouseListener {
     private int frontBuffer = 0;
     private int backBuffer = 1;
     private boolean playing = false;
+    private boolean stateToPaint = false;
+    private boolean mousePressed = false;
 
     public GameOfLife() {
         //Display the window, centred on the screen
@@ -29,6 +32,7 @@ public class GameOfLife extends JFrame implements Runnable, MouseListener {
 
         // send mouse events arriving into this JFrame back to its own event handlers
         addMouseListener(this);
+        addMouseMotionListener(this);
 
         // initialise double-buffering
         createBufferStrategy(2);
@@ -100,12 +104,18 @@ public class GameOfLife extends JFrame implements Runnable, MouseListener {
         int mouseX = (int) (e.getX() / 20);
         int mouseY = (int) (e.getY() / 20);
 
-        // reverse current value, ie true becomes false and false becomes true
+        // set that tile to the inverse of whatever it is currently
         gameState[mouseX][mouseY][frontBuffer] = !gameState[mouseX][mouseY][frontBuffer];
     }
 
     public void mousePressed(MouseEvent e) {
+        // get position of mouse X and Y based on its position in grid, i.e. mouse's X and Y divided by 20 and rounded down
+        int mouseX = (int) (e.getX() / 20);
+        int mouseY = (int) (e.getY() / 20);
 
+        // set StateToPaint to the inverse of whatever tile the mouse is currently over
+        // this will allow us to drag and paint the one colour
+        stateToPaint = !gameState[mouseX][mouseY][frontBuffer];
     }
 
     public void mouseReleased(MouseEvent e) {
@@ -119,6 +129,19 @@ public class GameOfLife extends JFrame implements Runnable, MouseListener {
 
     public void mouseExited(MouseEvent e) {
 
+    }
+
+    public void mouseMoved(MouseEvent e) {
+
+    }
+
+    public void mouseDragged(MouseEvent e) {
+        // get position of mouse X and Y based on its position in grid, i.e. mouse's X and Y divided by 20 and rounded down
+        int mouseX = (int) (e.getX() / 20);
+        int mouseY = (int) (e.getY() / 20);
+
+        // set the tile to the stateToPaint value
+        gameState[mouseX][mouseY][frontBuffer] = stateToPaint;
     }
 
     private void updateGameState() {
@@ -170,6 +193,45 @@ public class GameOfLife extends JFrame implements Runnable, MouseListener {
                 gameState[i][j][frontBuffer] = Math.random() < 0.5;
             }
         }
+    }
+
+    public void saveGame() {
+        String filename = "gamestate.txt";
+        try {
+            BufferedWriter writer = new BufferedWriter(new FileWriter(filename));
+            for (int i = 0; i < 40; i++) {
+                for (int j = 0; j < 40; j++) {
+                    // write 1 if cell is alive, 0 if cell is dead
+                    if (gameState[i][j][frontBuffer]) {
+                        writer.write("1");
+                    } else {
+                        writer.write("0");
+                    }
+                    writer.newLine();
+                }
+            }
+            writer.close();
+        }
+        catch (IOException e) { }
+    }
+
+    public void loadGame() {
+        String line=null;
+        String filename = "gamestate.txt";
+        int i = 0;
+        try {
+            BufferedReader reader = new BufferedReader(new FileReader(filename));
+            do {
+                try {
+                    line = reader.readLine();
+                    // when i surpasses 40, (int) (i / 40) becomes 1
+                    // here we make the corresponding gameState value true if line is 1 or false otherwise (i.e. line is 0)
+                    gameState[(int) (i / 40)][i % 40][frontBuffer] = (line.equals("1"));
+                    i++;
+                } catch (IOException e) { }
+            } while (line != null);
+            reader.close();
+        } catch (IOException e) { }
     }
 }
 
